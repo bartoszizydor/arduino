@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arduino krok po kroku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@11.2.2/blockly_compressed.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@11.2.2/blocks_compressed.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blockly@11.2.2/msg/pl.js"></script>
+<style>
+:root{
+  --bg:#E9EEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#16252C; --muted:#5A6C74; --line:#CFD9DD;
+  --primary:#E8792F; --primary-ink:#FFFFFF; --stop:#C7362F; --sel:#FFF1E6; --sel-line:#E8792F;
+  --radius:12px; color-scheme: light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#0F181C; --surface:#172429; --surface-2:#1D2D33; --ink:#E4EDF0; --muted:#98ABB3; --line:#2C3F47;
+    --primary:#F08A45; --primary-ink:#1A0D04; --stop:#E2554D; --sel:#3A2618; --sel-line:#F08A45; color-scheme: dark; }
+}
+:root[data-theme="dark"]{ --bg:#0F181C; --surface:#172429; --surface-2:#1D2D33; --ink:#E4EDF0; --muted:#98ABB3; --line:#2C3F47;
+  --primary:#F08A45; --primary-ink:#1A0D04; --stop:#E2554D; --sel:#3A2618; --sel-line:#F08A45; color-scheme: dark; }
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:"Lexend",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,1fr)}
+header.top{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{width:30px;height:30px;flex:none}
+.brand h1{font-size:17px;font-weight:700;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:500;line-height:1.2;font-size:14px}
+.btn-run{background:var(--primary);color:var(--primary-ink);border-color:transparent;padding:9px 18px;font-weight:600;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-size:15px}
+.btn-run.running{background:var(--stop);color:#fff}
+.btn-run svg{width:14px;height:14px}
+main{min-height:0;display:grid;grid-template-columns:240px minmax(0,1.15fr) minmax(0,1fr)}
+#lessonPanel{order:1} #wiringPanel{order:2} #programPanel{order:3}
+.panel{min-height:0;display:flex;flex-direction:column;background:var(--surface)}
+.panel + .panel{border-left:1px solid var(--line)}
+.scroll{overflow:auto;min-height:0;flex:1}
+.panel-head{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);min-height:50px}
+.panel-head h2{font-size:15px;margin:0;font-weight:600}
+.lessons{list-style:none;margin:0;padding:8px}
+.lessons button{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:1px solid transparent;background:none;border-radius:10px;padding:9px 10px;cursor:pointer;font-weight:500;line-height:1.3}
+.lessons button:hover{background:var(--surface-2)}
+.lessons button[aria-current="true"]{background:var(--sel);border-color:var(--sel-line)}
+.lessons .no{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line);font-size:13px;font-weight:700;flex:none}
+.lessons button[aria-current="true"] .no{background:var(--primary);color:var(--primary-ink);border-color:transparent}
+.goal{padding:12px 16px;border-bottom:1px solid var(--line);font-size:14.5px}
+.goal b{display:block;font-size:20px;margin-bottom:2px;line-height:1.25}
+#blocklyDiv{flex:1;min-height:320px;position:relative}
+.stage{position:relative;height:460px;background:radial-gradient(ellipse at 50% 30%,var(--surface-2),#D5DFE3);border-bottom:1px solid var(--line);touch-action:none;cursor:grab}
+.stage canvas{display:block;width:100%;height:100%}
+.stage-help{position:absolute;left:10px;bottom:8px;font-size:12px;color:#4f5f66;pointer-events:none}
+.stage-reset{position:absolute;right:10px;bottom:8px}
+.no3d{padding:20px;color:var(--muted);font-size:14px}
+.ctl{display:flex;align-items:center;gap:12px;margin:12px 14px 0;border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;background:var(--surface-2)}
+.ctl[hidden]{display:none}
+.ctl .name{font-size:14px;font-weight:600}
+.ctl .sub{font-size:12.5px;color:var(--muted)}
+.ctl .meta{flex:1}
+.ctl input[type=range]{width:100%;accent-color:var(--primary)}
+.push{width:52px;height:52px;flex:none;border-radius:50%;border:4px solid #2F3D42;background:radial-gradient(circle at 40% 35%,#E5544E,#9E211C);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 4px 0 #11191C}
+.push.down{transform:translateY(3px);box-shadow:0 1px 0 #11191C;filter:brightness(1.25)}
+.info{margin-top:16px}
+.inputs{margin:0 14px 10px}
+.inputs label{display:block;font-size:14px;font-weight:500}
+.inputs input[type=range]{width:100%;accent-color:var(--primary)}
+.info{margin:0 14px 18px;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.info h3{font-size:14px;margin:0 0 6px;font-weight:600}
+.info ul,.info ol{margin:0;padding-left:20px;font-size:14px}
+.info li{margin:3px 0}
+.hint-press{font-size:13px;color:var(--muted);margin:0 14px 10px}
+.msg{margin:0 16px 12px;padding:9px 12px;border-radius:10px;font-size:14px;background:#FDE8E6;color:#9B2620;display:none}
+.msg.show{display:block}
+.led-glow{transition:opacity .08s}
+nav.tabs{display:none}
+@media (max-width: 1000px){
+  main{grid-template-columns:minmax(0,1fr)}
+  .panel{display:none}
+  .panel + .panel{border-left:none}
+  .app[data-view="lessons"] #lessonPanel,.app[data-view="program"] #programPanel,.app[data-view="wiring"] #wiringPanel{display:flex}
+  nav.tabs{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--line)}
+  nav.tabs button{background:none;border:none;padding:10px 4px 12px;font-weight:500;color:var(--muted);font-size:14px;cursor:pointer}
+  nav.tabs button[aria-current="true"]{color:var(--primary);font-weight:600}
+  .brand h1{font-size:15px}
+  header.top{padding:8px 12px}
+}
+@media print{ nav.tabs,header.top .btn-run,#lessonPanel{display:none} main{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="app" id="app" data-view="lessons">
+  <header class="top">
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="5" width="28" height="22" rx="5" fill="#1E63A6"/><circle cx="11" cy="16" r="4.5" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="21" cy="16" r="4.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M9 16h4M19 16h4M21 14v4" stroke="#fff" stroke-width="2"/></svg><h1>Arduino krok po kroku</h1></div>
+    <div class="spacer"></div>
+    <button class="btn btn-run" id="runBtn" type="button"><svg viewBox="0 0 14 14" aria-hidden="true"><path id="runIcon" d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg><span id="runLabel">Uruchom</span></button>
+  </header>
+  <main>
+    <section class="panel" id="lessonPanel" aria-label="Lekcje">
+      <div class="panel-head"><h2>Lekcje</h2></div>
+      <div class="scroll"><ul class="lessons" id="lessons"></ul></div>
+    </section>
+    <section class="panel" id="programPanel" aria-label="Program">
+      <div class="panel-head"><h2>Program w blokach</h2></div>
+      <div class="goal" id="goal"></div>
+      <div id="blocklyDiv"></div>
+      <div class="msg" id="msg" role="status"></div>
+    </section>
+    <section class="panel" id="wiringPanel" aria-label="Schemat podłączenia">
+      <div class="panel-head"><h2>Schemat podłączenia</h2></div>
+      <div class="scroll">
+        <div class="stage" id="stage"><span class="stage-help">Przeciągnij, aby obrócić. Kółko lub dwa palce: zbliżenie.</span><button class="btn stage-reset" id="resetView" type="button">Widok</button></div>
+        <div class="ctl" id="pressBox" hidden><div class="push" id="pushBtn" role="button" tabindex="0" aria-label="Przycisk na pinie 2, przytrzymaj"></div><div class="meta"><div class="name">Przycisk</div><div class="sub">przytrzymaj, żeby wcisnąć</div></div></div>
+        <div class="ctl" id="lightBox" hidden><div class="meta"><div class="name">Jasność w pokoju: <span id="lightVal">jasno</span></div><input type="range" id="lightRange" min="0" max="1023" value="800" aria-label="Jasność w pokoju"></div></div>
+        <div class="info"><div><h3>Potrzebujesz</h3><ul id="partsList"></ul></div><div><h3>Podłącz po kolei</h3><ol id="stepsList"></ol></div></div>
+      </div>
+    </section>
+  </main>
+  <nav class="tabs" aria-label="Widok">
+    <button type="button" data-view="lessons" aria-current="true">Lekcje</button>
+    <button type="button" data-view="wiring">Schemat</button>
+    <button type="button" data-view="program">Program</button>
+  </nav>
+</div>
+<div id="modal" hidden><p id="modalMsg"></p><input id="modalInput"><button id="modalOk"></button><button id="modalCancel"></button></div>
+<div hidden><input type="checkbox" id="soundOn" checked><pre id="serialOut"></pre><button id="clearSerial" type="button"></button></div>
+<script>
+"use strict";
+const msgEl = document.getElementById("msg");
+function showMsg(kind, text){ if(kind!=="err") return; msgEl.textContent = text; msgEl.classList.add("show"); }
+function hideMsg(){ msgEl.classList.remove("show"); }
+let current = null;
+const TYPE = "(?:(?:unsigned|signed|const|static|volatile)\\s+)*(?:void|int|long|float|double|bool|boolean|byte|char|String|word|short|size_t|u?int(?:8|16|32)_t)(?:\\s+(?:int|long))?";
+function translate(src){
+  const lits = [];
+  let s = src.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'/g, m=>{
+    if(m.startsWith("//")) return "";
+    if(m.startsWith("/*")) return m.replace(/[^\n]/g," ");
+    lits.push(m); return "__L"+(lits.length-1)+"__";
+  });
+  s = s.replace(/^[ \t]*#include[^\n]*/gm, "");
+  s = s.replace(/^[ \t]*#define[ \t]+(\w+)[ \t]+([^\n]+)/gm, "const $1 = $2;");
+  s = s.replace(/\bServo\s+(\w+)\s*;/g, "const $1 = __newServo();");
+  // prototypy funkcji
+  s = s.replace(new RegExp("^[ \\t]*"+TYPE+"\\s+\\w+\\s*\\([^)=]*\\)\\s*;","gm"), "");
+  // definicje funkcji
+  const names = [];
+  s = s.replace(new RegExp("\\b"+TYPE+"\\s+(\\w+)\\s*\\(([^)]*)\\)\\s*\\{","g"), (m,name,params)=>{
+    names.push(name);
+    const ps = (!params.trim() || params.trim()==="void") ? "" :
+      params.split(",").map(p=>p.trim().replace(/=.*$/,"").replace(/\[\s*\]/,"").trim().split(/\s+/).pop().replace(/[&*]/g,"")).join(", ");
+    return "async function "+name+"("+ps+") {";
+  });
+  // tablice
+  s = s.replace(new RegExp("\\b"+TYPE+"\\s+(\\w+)\\s*\\[\\s*\\w*\\s*\\]\\s*=\\s*\\{([^}]*)\\}","g"), "let $1 = [$2]");
+  s = s.replace(new RegExp("\\b"+TYPE+"\\s+(\\w+)\\s*\\[\\s*(\\w+)\\s*\\]\\s*;","g"), "let $1 = new Array($2).fill(0);");
+  // rzutowania
+  s = s.replace(/\(\s*(?:unsigned\s+)?(?:int|long|byte|word|short)\s*\)\s*/g, "~~");
+  s = s.replace(/\(\s*(?:float|double)\s*\)\s*/g, "");
+  // deklaracje zmiennych
+  s = s.replace(new RegExp("\\b"+TYPE+"\\s+(?=[A-Za-z_])","g"), "let ");
+  s = s.replace(/\blet\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)\s*;/g, (m,v)=>"let "+v.split(",").map(x=>x.trim()+" = 0").join(", ")+";");
+  // wywołania funkcji użytkownika
+  names.forEach(n=>{ s = s.replace(new RegExp("\\b"+n+"\\s*\\(","g"), "await "+n+"("); });
+  s = s.replace(/async function await /g, "async function ");
+  s = s.replace(/\bdelay\s*\(/g, "await delay(").replace(/\bdelayMicroseconds\s*\(/g, "await delayMicroseconds(");
+  // pętle bez ciała i pętle w ogóle: dajemy oddech przeglądarce
+  s = s.replace(/\bwhile\s*\(([^;{]*)\)\s*;/g, "while($1) { await __tick(); }");
+  s = s.replace(/(\)|\belse|\bdo)\s*\{/g, "$1 { await __tick();");
+  s = s.replace(/__L(\d+)__/g, (m,i)=>{ const l = lits[+i]; return l.startsWith("'") && l.length<=4 ? l : l; });
+  return s;
+}
+const API_NAMES = ["__tick","__newServo","pinMode","digitalWrite","digitalRead","analogRead","analogWrite","delay","delayMicroseconds","millis","micros","tone","noTone","map","constrain","random","randomSeed","abs","min","max","pow","sqrt","sq","Serial","HIGH","LOW","INPUT","OUTPUT","INPUT_PULLUP","A0","A1","A2","A3","A4","A5","LED_BUILTIN","DEC"];
+function compile(src){
+  const js = translate(src);
+  const AsyncFn = Object.getPrototypeOf(async function(){}).constructor;
+  const body = "{\n"+js+"\nif (typeof setup !== 'function') throw new Error('Brakuje funkcji setup().');\nif (typeof loop !== 'function') throw new Error('Brakuje funkcji loop().');\nawait setup();\nwhile (true) { await loop(); await __tick(); }\n}";
+  return new AsyncFn(...API_NAMES, body);
+}
+function plError(e){
+  const m = String(e && e.message || e);
+  let r;
+  if((r = m.match(/^(\w+) is not defined/))) return `nie znam nazwy „${r[1]}”. Sprawdź pisownię (wielkość liter ma znaczenie) albo zadeklaruj zmienną.`;
+  if((r = m.match(/^(?:\S+\.)?(\w+) is not a function/))) return `„${r[1]}” nie jest funkcją. Sprawdź pisownię.`;
+  if((r = m.match(/Identifier '(\w+)' has already been declared/))) return `zmienna „${r[1]}” jest zadeklarowana dwa razy.`;
+  if(/Unexpected token|Unexpected identifier|Invalid or unexpected|missing \)|Unexpected end/i.test(m)) return "coś w składni się nie zgadza (np. brakujący nawias, przecinek albo literówka). Porównaj z przykładem w lekcji.";
+  return m;
+}
+
+/* ================= SYMULATOR PŁYTKI ================= */
+const STOP = Symbol("stop");
+const ui = { button:false, A0:700, A1:512 };
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+let audioCtx = null, osc = null, gainNode = null;
+const board = {
+  running:false, pins:{}, modes:{}, toggles:{}, servo:90, servoSet:new Set(), toneSet:new Set(), toneFreq:0, toneEnd:-1e9, toneTimer:null,
+  serial:[], partial:"", numbers:[], n:0, t0:0, serialBegun:false, warned:false,
+  reset(){ this.pins={}; this.modes={}; this.toggles={}; this.servo=90; this.servoSet=new Set(); this.toneSet=new Set(); this.toneFreq=0; this.toneEnd=-1e9;
+    clearTimeout(this.toneTimer); this.serial=[]; this.partial=""; this.numbers=[]; this.n=0; this.t0=performance.now(); this.serialBegun=false; this.warned=false; stopSound(); renderSerial(); scheduleRender(); },
+  setPin(p,v){ const was = (this.pins[p]||0)>0, now = v>0; if(was!==now) this.toggles[p]=(this.toggles[p]||0)+1; this.pins[p]=v; scheduleRender(); },
+  lineOut(s){ this.serial.push(s); if(this.serial.length>400) this.serial.shift();
+    const m = s.match(/-?\d+(?:\.\d+)?/); if(m && /^\s*-?\d+(\.\d+)?\s*$/.test(s)){ this.numbers.push(Number(m[0])); if(this.numbers.length>60) this.numbers.shift(); }
+    renderSerial(); }
+};
+function check(){ if(!board.running) throw STOP; }
+function pinNo(p){ p = Number(p); return p; }
+function fmt(v){ if(typeof v === "number"){ return Number.isInteger(v) ? String(v) : v.toFixed(2); } if(typeof v === "boolean") return v ? "1" : "0"; return String(v); }
+const api = {
+  __tick: async ()=>{ check(); if(++board.n % 150 === 0) await sleep(0); check(); },
+  __newServo: ()=>({ attach(){}, detach(){}, write(a){ a = Math.max(0, Math.min(180, Math.round(Number(a)||0))); board.servo=a; board.servoSet.add(a); scheduleRender(); }, read(){ return board.servo; } }),
+  pinMode:(p,m)=>{ board.modes[pinNo(p)] = m; },
+  digitalWrite:(p,v)=>{ board.setPin(pinNo(p), v ? 1 : 0); },
+  digitalRead:(p)=>{ p = pinNo(p); if(p===2){ const pu = board.modes[2]===api.INPUT_PULLUP; return ui.button ? (pu?0:1) : (pu?1:0); } return (board.pins[p]||0)>0 ? 1 : 0; },
+  analogRead:(p)=>{ p = pinNo(p); if(p<14) p += 14; return p===14 ? ui.A0 : p===15 ? ui.A1 : 0; },
+  analogWrite:(p,v)=>{ v = Math.max(0, Math.min(255, Math.trunc(Number(v)||0))); board.setPin(pinNo(p), v/255); },
+  delay: async (ms)=>{ ms = Math.max(0, Math.min(Number(ms)||0, 3600000)); const end = performance.now()+ms;
+    do{ check(); const left = end-performance.now(); await sleep(Math.max(0, Math.min(25,left))); } while(performance.now() < end); check(); },
+  delayMicroseconds: async (us)=>{ await api.delay((Number(us)||0)/1000); },
+  millis:()=> Math.trunc(performance.now()-board.t0),
+  micros:()=> Math.trunc((performance.now()-board.t0)*1000),
+  tone:(p,f,d)=>{ f = Number(f)||0; if(f<=0) return; board.toneFreq=f; board.toneSet.add(Math.round(f)); startSound(f); clearTimeout(board.toneTimer);
+    if(d){ board.toneEnd = performance.now()+Number(d); board.toneTimer = setTimeout(()=>api.noTone(p), Number(d)); } else board.toneEnd = Infinity; scheduleRender(); },
+  noTone:()=>{ clearTimeout(board.toneTimer); if(board.toneFreq>0) board.toneEnd = performance.now(); board.toneFreq=0; stopSound(); scheduleRender(); },
+  map:(x,a,b,c,d)=> Math.trunc((x-a)*(d-c)/(b-a)+c),
+  constrain:(x,a,b)=> Math.min(Math.max(x,a),b),
+  random:(a,b)=>{ if(b===undefined){ b=a; a=0; } return Math.floor(a + Math.random()*(b-a)); },
+  randomSeed:()=>{}, abs:Math.abs, min:Math.min, max:Math.max, pow:Math.pow, sqrt:Math.sqrt, sq:x=>x*x,
+  Serial:{ begin(){ board.serialBegun = true; }, end(){}, available(){ return 0; }, read(){ return -1; },
+    print(v){ serialWarn(); board.partial += fmt(v); renderSerial(); },
+    println(v){ serialWarn(); board.lineOut(board.partial + (v===undefined ? "" : fmt(v))); board.partial=""; } },
+  HIGH:1, LOW:0, INPUT:0, OUTPUT:1, INPUT_PULLUP:2, A0:14, A1:15, A2:16, A3:17, A4:18, A5:19, LED_BUILTIN:13, DEC:10
+};
+function serialWarn(){ if(!board.serialBegun && !board.warned){ board.warned = true; showMsg("warn", "Wskazówka: na prawdziwej płytce dodaj Serial.begin(9600); w setup(), inaczej monitor nic nie pokaże."); } }
+function startSound(f){
+  if(!document.getElementById("soundOn").checked) return;
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==="suspended") audioCtx.resume();
+    if(!osc){ gainNode = audioCtx.createGain(); gainNode.gain.value = 0.04; gainNode.connect(audioCtx.destination);
+      osc = audioCtx.createOscillator(); osc.type="square"; osc.connect(gainNode); osc.start(); }
+    osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+  }catch(e){}
+}
+function stopSound(){ try{ if(osc){ osc.stop(); osc.disconnect(); } }catch(e){} osc = null; }
+const serialOut = document.getElementById("serialOut");
+let serialQueued = false;
+function renderSerial(){ if(serialQueued) return; serialQueued = true; requestAnimationFrame(()=>{ serialQueued=false;
+  serialOut.textContent = board.serial.join("\n") + (board.partial ? (board.serial.length?"\n":"")+board.partial : ""); serialOut.scrollTop = serialOut.scrollHeight; }); }
+document.getElementById("clearSerial").onclick = ()=>{ board.serial=[]; board.partial=""; renderSerial(); };
+/* ================= PŁYTKA 3D ================= */
+const stage = document.getElementById("stage");
+const scene3 = { ok:false };
+let needRender = true;
+function scheduleRender(){ needRender = true; if(typeof renderStates === 'function') renderStates(); }
+(function init3D(){
+  if(!window.THREE){ stage.innerHTML = '<p class="no3d">Nie udało się wczytać grafiki 3D. Stan płytki widać w opisach poniżej.</p>'; return; }
+  let renderer;
+  try{ renderer = new THREE.WebGLRenderer({antialias:true, alpha:true}); }
+  catch(e){ stage.innerHTML = '<p class="no3d">To urządzenie nie obsługuje grafiki 3D. Stan płytki widać w opisach poniżej.</p>'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  const V = (x,y,z)=> new THREE.Vector3(x,y,z);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 300);
+  const CX = 1.4, CZ = -0.3;
+  const pivot = new THREE.Group(); pivot.position.set(CX,0,CZ); scene.add(pivot);
+  const root = new THREE.Group(); root.position.set(-CX,0,-CZ); pivot.add(root);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 0.8));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.7); sun.position.set(-3,12,8); scene.add(sun);
+
+  const M = (color, extra={}) => new THREE.MeshStandardMaterial(Object.assign({color, roughness:0.6, metalness:0.05}, extra));
+  const box = (w,h,d,mat,x,y,z,parent=root)=>{ const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m.position.set(x,y,z); parent.add(m); return m; };
+  const cyl = (rt,rb,h,mat,x,y,z,parent=root,seg=24)=>{ const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), mat); m.position.set(x,y,z); parent.add(m); return m; };
+  const UP = V(0,1,0);
+  function rod(a,b,r,mat,parent){ const d = b.clone().sub(a), L = d.length(); if(L < 1e-4) return null;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,10), mat); m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(UP, d.normalize()); parent.add(m); return m; }
+  const metal = M(0xc9ced1,{metalness:0.85, roughness:0.3});
+
+  /* ---------- Arduino UNO (wymiary 68,6 × 53,4 mm, 1 jednostka = 10 mm) ---------- */
+  const BW = 6.86, BD = 5.34, BX = 0, BZ = -3.4, PY0 = 0.22, PT = 0.16, PY = PY0 + PT;
+  const HZd = BZ - 2.42, HZp = BZ + 2.42, HH = 0.85;
+  const dX = p => p <= 7 ? 2.92 - p*0.254 : 0.736 - (p-8)*0.254;
+  const pwrX = { NC:-0.638, IOREF:-0.384, RESET:-0.13, "3V3":0.124, "5V":0.378, GND:0.632, GND2:0.886, VIN:1.14 };
+  const aX = i => 1.65 + i*0.254;
+  const pinTop = p => V(dX(p), PY+HH, HZd);
+  const pwrTop = n => V(pwrX[n], PY+HH, HZp);
+  const anTop = i => V(aX(i), PY+HH, HZp);
+  {
+    const S = 200, cv = document.createElement("canvas"); cv.width = BW*S; cv.height = BD*S;
+    const g = cv.getContext("2d"), U = x => (x - (BX-BW/2))*S, W = z => (z - (BZ-BD/2))*S;
+    g.fillStyle = "#1E63A6"; g.fillRect(0,0,cv.width,cv.height);
+    g.strokeStyle = "rgba(255,255,255,.12)"; g.lineWidth = 6;
+    for(let i=0;i<7;i++){ g.beginPath(); g.moveTo(U(-1.6), W(BZ-0.5+i*0.18)); g.lineTo(U(-0.4), W(BZ-0.5+i*0.18)); g.lineTo(U(0.2), W(BZ+0.1+i*0.18)); g.stroke(); }
+    [[-2.03,BZ+2.42],[-1.90,BZ-2.40],[3.18,BZ+1.91],[3.18,BZ-0.88]].forEach(([x,z])=>{ g.fillStyle="#d9dde0"; g.beginPath(); g.arc(U(x),W(z),36,0,7); g.fill(); g.fillStyle="#2a2f33"; g.beginPath(); g.arc(U(x),W(z),20,0,7); g.fill(); });
+    g.fillStyle = "#fff"; g.textBaseline = "middle";
+    const vtext = (t,x,z,align,size=26)=>{ g.save(); g.translate(U(x),W(z)); g.rotate(-Math.PI/2); g.textAlign = align; g.font = `600 ${size}px Lexend, sans-serif`; g.fillText(t,0,0); g.restore(); };
+    for(let p=0;p<=13;p++) vtext(([3,5,6,9,10,11].includes(p)?"~":"")+p, dX(p), HZd+0.22, "right");
+    vtext("GND", -0.788, HZd+0.22, "right"); vtext("AREF", -1.042, HZd+0.22, "right");
+    vtext("SDA", -1.296, HZd+0.22, "right", 22); vtext("SCL", -1.55, HZd+0.22, "right", 22);
+    ["IOREF","RESET","3V3","5V","GND","GND2","VIN"].forEach(n=> vtext(n==="GND2"?"GND":n, pwrX[n], HZp-0.22, "left", 22));
+    for(let i=0;i<6;i++) vtext("A"+i, aX(i), HZp-0.22, "left");
+    g.textAlign = "center";
+    g.font = "700 30px Lexend, sans-serif"; g.fillText("DIGITAL (PWM ~)", U(1.1), W(HZd+0.78));
+    g.font = "600 26px Lexend, sans-serif"; g.fillText("POWER", U(0.25), W(HZp-0.75)); g.fillText("ANALOG IN", U(2.28), W(HZp-0.75));
+    g.font = "800 92px Lexend, sans-serif"; g.fillText("UNO", U(2.1), W(BZ-0.55));
+    g.font = "700 50px Lexend, sans-serif"; g.fillText("ARDUINO", U(0.7), W(BZ-0.15));
+    g.font = "600 24px Lexend, sans-serif"; g.fillText("L", U(-0.85), W(BZ-1.7)); g.fillText("TX", U(-0.88), W(BZ-1.45)); g.fillText("RX", U(-0.88), W(BZ-1.2)); g.fillText("ON", U(2.62), W(BZ-1.05));
+    g.fillText("RESET", U(-2.62), W(BZ-1.75));
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+    const side = M(0x184f86);
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(BW,PT,BD), [side,side,M(0xffffff,{map:tex, roughness:0.75}),side,side,side]);
+    pcb.position.set(BX, PY0+PT/2, BZ); root.add(pcb);
+    [[-2.03,BZ+2.42],[-1.90,BZ-2.40],[3.18,BZ+1.91],[3.18,BZ-0.88]].forEach(([x,z])=> cyl(0.16,0.16,PY0,M(0x2b2f33),x,PY0/2,z));
+  }
+  // listwy żeńskie z otworami
+  const hdrMat = M(0x17191b, {roughness:0.8}), holeMat = M(0x050506);
+  function header(x0, x1, z){ box(x1-x0+0.254, HH, 0.25, hdrMat, (x0+x1)/2, PY+HH/2, z);
+    for(let x=x0; x<=x1+1e-6; x+=0.254) box(0.1, 0.01, 0.1, holeMat, x, PY+HH+0.003, z); }
+  header(dX(7), dX(0), HZd); header(-1.55, dX(8), HZd);
+  header(-0.638, 1.14, HZp); header(aX(0), aX(5), HZp);
+  // elementy płytki
+  box(1.6,1.1,1.2,M(0xc4cbcf,{metalness:0.7, roughness:0.35}), -3.27, PY+0.55, BZ-1.13);
+  box(1.4,1.1,0.9,M(0x1c1f21), -2.93, PY+0.55, BZ+1.87);
+  cyl(0.32,0.32,0.9,M(0x2c3236), -1.55, PY+0.45, BZ+1.95); cyl(0.32,0.32,0.9,M(0x2c3236), -0.85, PY+0.45, BZ+1.95);
+  box(0.45,0.1,0.18,metal,-1.55,PY+0.91,BZ+1.95);
+  box(0.6,0.25,0.6,M(0x1c1f21), -2.62, PY+0.13, BZ-2.15); cyl(0.13,0.13,0.12,M(0xc23b33), -2.62, PY+0.3, BZ-2.15);
+  box(3.7,0.12,0.85,M(0x2a2d30), 1.75, PY+0.06, BZ+1.25);
+  box(3.56,0.3,0.72,M(0x141618), 1.75, PY+0.27, BZ+1.25);
+  for(let i=0;i<14;i++){ const x = 1.75-1.651+i*0.254; box(0.07,0.18,0.06,metal,x,PY+0.2,BZ+1.25-0.4); box(0.07,0.18,0.06,metal,x,PY+0.2,BZ+1.25+0.4); }
+  box(0.95,0.32,0.42,M(0xd6dadd,{metalness:0.8, roughness:0.25}), 0.05, PY+0.16, BZ+0.75);
+  box(0.7,0.12,0.7,M(0x141618), -1.1, PY+0.06, BZ-1.55);
+  box(0.6,0.25,0.4,M(0x141618), -1.95, PY+0.13, BZ+0.75); box(0.6,0.04,0.25,metal,-1.95,PY+0.27,BZ+0.95);
+  box(0.75,0.5,0.5,M(0x17191b), 3.05, PY+0.25, BZ+0.15);
+  const ledLMat = M(0x5b3a12,{emissive:0xffa21a, emissiveIntensity:0});
+  box(0.16,0.08,0.1,ledLMat, -0.55, PY+0.04, BZ-1.7);
+  box(0.16,0.08,0.1,M(0x5b4a12), -0.55, PY+0.04, BZ-1.45); box(0.16,0.08,0.1,M(0x5b4a12), -0.55, PY+0.04, BZ-1.2);
+  box(0.16,0.08,0.1,M(0x1f7a35,{emissive:0x35ff6a, emissiveIntensity:1.3}), 2.95, PY+0.04, BZ-1.05);
+
+  /* ---------- płytka stykowa ---------- */
+  const P = 0.254, NCOL = 63, X0 = -6.5, BBZ = 0.0, BBH = 0.85, BBD = 5.5, BBT = BBH;
+  const RZ = { Tm:0.45, Tp:0.704, a:1.35, b:1.35+P, c:1.35+2*P, d:1.35+3*P, e:1.35+4*P };
+  RZ.f = RZ.e + 3*P; RZ.g = RZ.f+P; RZ.h = RZ.f+2*P; RZ.i = RZ.f+3*P; RZ.j = RZ.f+4*P; RZ.Bp = RZ.j+0.646; RZ.Bm = RZ.Bp+P;
+  const colX = c => X0 + (c-1)*P;
+  const hole = (c, r) => V(colX(c), BBT, BBZ + RZ[r]);
+  const BBW = (NCOL-1)*P + 1.0, BBCX = colX(1) + (NCOL-1)*P/2;
+  {
+    const S = 200, cv = document.createElement("canvas"); cv.width = Math.round(BBW*S); cv.height = Math.round(BBD*S);
+    const g = cv.getContext("2d"), U = x => (x - (BBCX-BBW/2))*S, W = z => (z - BBZ)*S;
+    g.fillStyle = "#F3F1EA"; g.fillRect(0,0,cv.width,cv.height);
+    g.fillStyle = "#DEDAD0"; g.fillRect(0, W(BBZ+RZ.e+0.3), cv.width, (RZ.f-RZ.e-0.6)*S);
+    g.fillStyle = "#C9C4B8"; g.fillRect(0, W(BBZ+(RZ.e+RZ.f)/2)-6, cv.width, 12);
+    const hs = 21;
+    const sq = (x,z)=>{ g.fillStyle = "#8f8a80"; g.fillRect(U(x)-hs/2-3, W(z)-hs/2-3, hs+6, hs+6); g.fillStyle = "#2b2a28"; g.fillRect(U(x)-hs/2, W(z)-hs/2, hs, hs); };
+    const RAIL = {Tm:1,Tp:1,Bp:1,Bm:1};
+    Object.keys(RZ).forEach(r=>{ for(let c=1;c<=NCOL;c++){ if(RAIL[r] && (c%6===0 || c>60)) continue; sq(colX(c), BBZ+RZ[r]); } });
+    const line = (z,color)=>{ g.fillStyle = color; g.fillRect(U(colX(1)-0.3), W(z)-5, (NCOL-1)*P*S+0.6*S, 10); };
+    line(BBZ+RZ.Tm-0.2, "#2f6fd6"); line(BBZ+RZ.Tp+0.2, "#d6382f"); line(BBZ+RZ.Bp-0.2, "#d6382f"); line(BBZ+RZ.Bm+0.2, "#2f6fd6");
+    g.font = "700 34px Lexend, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#2f6fd6"; g.fillText("−", U(colX(1)-0.38), W(BBZ+RZ.Tm)); g.fillText("−", U(colX(NCOL)+0.38), W(BBZ+RZ.Bm));
+    g.fillStyle = "#d6382f"; g.fillText("+", U(colX(1)-0.38), W(BBZ+RZ.Tp)); g.fillText("+", U(colX(NCOL)+0.38), W(BBZ+RZ.Bp));
+    g.fillStyle = "#7c776d"; g.font = "600 24px Lexend, sans-serif";
+    ["a","b","c","d","e","f","g","h","i","j"].forEach(r=>{ g.fillText(r, U(colX(1)-0.32), W(BBZ+RZ[r])); g.fillText(r, U(colX(NCOL)+0.32), W(BBZ+RZ[r])); });
+    [1,5,10,15,20,25,30,35,40,45,50,55,60].forEach(c=>{ g.fillText(String(c), U(colX(c)), W(BBZ+RZ.a-0.28)); g.fillText(String(c), U(colX(c)), W(BBZ+RZ.j+0.28)); });
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
+    const side = M(0xe4e1d8,{roughness:0.85});
+    const bb = new THREE.Mesh(new THREE.BoxGeometry(BBW,BBH,BBD), [side,side,M(0xffffff,{map:tex, roughness:0.85}),side,side,side]);
+    bb.position.set(BBCX, BBH/2, BBZ+BBD/2); root.add(bb);
+  }
+
+  /* ---------- części i przewody ---------- */
+  const groups = {};
+  const grp = id => { if(!groups[id]){ groups[id] = new THREE.Group(); root.add(groups[id]); } return groups[id]; };
+  const tipMat = M(0x3a3f43);
+  function wire(p0, p3, color, lift, parent, r=0.048){
+    const c = new THREE.CubicBezierCurve3(p0, p0.clone().add(V(0,lift,0)), p3.clone().add(V(0,lift,0)), p3);
+    parent.add(new THREE.Mesh(new THREE.TubeGeometry(c, 48, r, 8, false), M(color,{roughness:0.45})));
+    [p0,p3].forEach(p=> rod(p.clone().add(V(0,-0.08,0)), p.clone().add(V(0,0.16,0)), r+0.012, tipMat, parent));
+  }
+  function resistor(A, B, bands, parent){
+    const y = BBT + 0.3, dir = B.clone().sub(A); dir.y = 0; const L = dir.length(); dir.normalize();
+    const bl = Math.min(0.64, L - 0.14), mid = A.clone().add(B).multiplyScalar(0.5); mid.y = y;
+    const e1 = mid.clone().addScaledVector(dir, -bl/2), e2 = mid.clone().addScaledVector(dir, bl/2);
+    const a2 = A.clone().setY(y), b2 = B.clone().setY(y);
+    rod(A.clone().setY(BBT-0.05), a2, 0.02, metal, parent); rod(a2, e1, 0.02, metal, parent);
+    rod(B.clone().setY(BBT-0.05), b2, 0.02, metal, parent); rod(b2, e2, 0.02, metal, parent);
+    const bodyMat = M(0xd8c296,{roughness:0.5});
+    rod(e1, e2, 0.095, bodyMat, parent);
+    [e1,e2].forEach(e=>{ const s = new THREE.Mesh(new THREE.SphereGeometry(0.11,14,10), bodyMat); s.position.copy(e).addScaledVector(dir, e===e1?0.05:-0.05); parent.add(s); });
+    bands.forEach((col,i)=>{ const pos = e1.clone().addScaledVector(dir, bl*(0.2+0.17*i) + (i===3?bl*0.12:0)); rod(pos.clone().addScaledVector(dir,-0.028), pos.clone().addScaledVector(dir,0.028), 0.101, M(col,{metalness: col===0xc9a227?0.6:0.05}), parent); });
+  }
+  function led(A, K, color, parent){
+    const mid = A.clone().add(K).multiplyScalar(0.5), yb = BBT + 0.42;
+    rod(A.clone().setY(BBT-0.05), A.clone().setY(yb-0.1), 0.02, metal, parent); rod(A.clone().setY(yb-0.1), mid.clone().setY(yb).add(V(0,0,0)).addScaledVector(A.clone().sub(K).normalize(), 0.06), 0.02, metal, parent);
+    rod(K.clone().setY(BBT-0.05), K.clone().setY(yb-0.1), 0.02, metal, parent); rod(K.clone().setY(yb-0.1), mid.clone().setY(yb).addScaledVector(K.clone().sub(A).normalize(), 0.06), 0.02, metal, parent);
+    const mat = M(color,{transparent:true, opacity:0.78, emissive:color, emissiveIntensity:0, roughness:0.25});
+    const g2 = new THREE.Group(); g2.position.set(mid.x, yb, mid.z); parent.add(g2);
+    cyl(0.29,0.29,0.06,mat,0,0.03,0,g2); cyl(0.25,0.25,0.36,mat,0,0.24,0,g2);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25,24,12,0,Math.PI*2,0,Math.PI/2), mat); dome.position.y = 0.42; g2.add(dome);
+    const light = new THREE.PointLight(color, 0, 3); light.position.set(0,0.9,0); g2.add(light);
+    return {mat, light};
+  }
+  const R220 = [0xd12b25, 0xd12b25, 0x6b3b17, 0xc9a227], R10K = [0x6b3b17, 0x111111, 0xe8781e, 0xc9a227];
+  const parts = {};
+  // zasilanie płytki stykowej z Arduino
+  { const gp = grp("power");
+    wire(pwrTop("GND"), hole(14,"Tm"), 0x1d1d1d, 0.9, gp);
+    wire(pwrTop("5V"), hole(16,"Tp"), 0xd83a2e, 1.1, gp); }
+  { const gb = grp("bottom");
+    wire(hole(1,"Tm"), hole(1,"Bm"), 0x1d1d1d, 0.6, gb);
+    wire(hole(2,"Tp"), hole(2,"Bp"), 0xd83a2e, 0.7, gb); }
+  function ledGroup(id, pin, k, color, wireColor){
+    const g2 = grp(id);
+    wire(pinTop(pin), hole(k,"a"), wireColor, 2.3 + (k*0.02), g2);
+    resistor(hole(k,"c"), hole(k+3,"c"), R220, g2);
+    const l = led(hole(k+3,"e"), hole(k+4,"e"), color, g2);
+    wire(hole(k+4,"b"), hole(k+4,"Tm"), 0x1d1d1d, 0.35, g2, 0.04);
+    parts[id] = l;
+  }
+  ledGroup("led10", 10, 3, 0xff2a20, 0xe23a32);
+  ledGroup("led9", 9, 9, 0xffc400, 0xf2b600);
+  ledGroup("led8", 8, 15, 0x14d23c, 0x2bb24c);
+  { const g2 = grp("button");
+    const L = [hole(23,"e"), hole(25,"e"), hole(23,"f"), hole(25,"f")];
+    const c = L[0].clone().add(L[3]).multiplyScalar(0.5);
+    L.forEach(h=> rod(h.clone().setY(BBT-0.05), h.clone().setY(BBT+0.12), 0.03, metal, g2));
+    box(0.62, 0.32, 0.92, M(0x1f2326), c.x, BBT+0.16, c.z, g2);
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=> cyl(0.05,0.05,0.05,metal,c.x+sx*0.22,BBT+0.33,c.z+sz*0.34,g2,10));
+    const cap = cyl(0.19,0.19,0.2,M(0xd8322b),c.x,BBT+0.42,c.z,g2);
+    wire(hole(23,"Tp"), hole(23,"a"), 0xd83a2e, 0.35, g2, 0.04);
+    wire(pinTop(2), hole(25,"a"), 0x2f7de1, 2.1, g2);
+    resistor(hole(25,"c"), hole(28,"c"), R10K, g2);
+    wire(hole(28,"a"), hole(28,"Tm"), 0x1d1d1d, 0.35, g2, 0.04);
+    parts.button = {cap, y0:BBT+0.42}; }
+  { const g2 = grp("buzzer");
+    const A = hole(19,"g"), K = hole(22,"g"), c = A.clone().add(K).multiplyScalar(0.5);
+    [A,K].forEach(h=> rod(h.clone().setY(BBT-0.05), h.clone().setY(BBT+0.1), 0.025, metal, g2));
+    cyl(0.6,0.6,0.45,M(0x1b1e20),c.x,BBT+0.33,c.z,g2,32); cyl(0.12,0.12,0.02,M(0x4a5258),c.x,BBT+0.56,c.z,g2);
+    const ringMat = new THREE.MeshBasicMaterial({color:0x14a3ac, transparent:true, opacity:0});
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75,0.035,8,48), ringMat); ring.rotation.x = Math.PI/2; ring.position.set(c.x, BBT+0.6, c.z); g2.add(ring);
+    wire(pinTop(7), hole(19,"j"), 0x8a4fd1, 2.6, g2);
+    wire(hole(22,"j"), hole(22,"Bm"), 0x1d1d1d, 0.35, g2, 0.04);
+    parts.buzzer = {ring, ringMat}; }
+  { const g2 = grp("light");
+    const A = hole(3,"h"), K = hole(5,"h"), c = A.clone().add(K).multiplyScalar(0.5);
+    [A,K].forEach(h=>{ rod(h.clone().setY(BBT-0.05), h.clone().setY(BBT+0.35), 0.02, metal, g2); rod(h.clone().setY(BBT+0.35), c.clone().setY(BBT+0.45).addScaledVector(h.clone().sub(c).normalize(), 0.08), 0.02, metal, g2); });
+    const head = cyl(0.21,0.21,0.08,M(0xc5562a),c.x,BBT+0.48,c.z,g2);
+    box(0.3,0.005,0.03,M(0xf1d9a0),c.x,BBT+0.523,c.z,g2);
+    const glowMat = new THREE.MeshBasicMaterial({color:0xfff2b0, transparent:true, opacity:0.3});
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.42,20,12), glowMat); halo.position.set(c.x, BBT+0.55, c.z); g2.add(halo);
+    wire(hole(3,"Bp"), hole(3,"j"), 0xd83a2e, 0.35, g2, 0.04);
+    wire(anTop(0), hole(5,"f"), 0xff8a1f, 1.4, g2);
+    resistor(hole(5,"g"), hole(8,"g"), R10K, g2);
+    wire(hole(8,"j"), hole(8,"Bm"), 0x1d1d1d, 0.35, g2, 0.04);
+    parts.light = {glowMat}; }
+  { const g2 = grp("pot");
+    const c = hole(12,"h");
+    [11,12,13].forEach(k=> rod(hole(k,"h").setY(BBT-0.05), hole(k,"h").setY(BBT+0.1), 0.025, metal, g2));
+    box(0.78,0.42,0.78,M(0x2457b0),c.x,BBT+0.21,c.z,g2);
+    const knob = new THREE.Group(); knob.position.set(c.x, BBT+0.42, c.z); g2.add(knob);
+    cyl(0.26,0.28,0.34,M(0xf0f0ea),0,0.17,0,knob); box(0.06,0.04,0.22,M(0x222222),0,0.35,-0.1,knob);
+    wire(hole(11,"j"), hole(11,"Bp"), 0xd83a2e, 0.35, g2, 0.04);
+    wire(hole(13,"j"), hole(13,"Bm"), 0x1d1d1d, 0.35, g2, 0.04);
+    wire(anTop(1), hole(12,"f"), 0x31c3d6, 1.6, g2);
+    parts.pot = {knob}; }
+  { const g2 = grp("servo");
+    const sx = 6.2, sz = -3.2;
+    box(1.25,0.95,0.62,M(0x2b62c4),sx,0.48,sz,g2); box(1.75,0.08,0.62,M(0x2b62c4),sx,0.78,sz,g2);
+    cyl(0.2,0.2,0.2,M(0xf2f2f2),sx-0.3,1.06,sz,g2);
+    const arm = new THREE.Group(); arm.position.set(sx-0.3,1.18,sz); g2.add(arm);
+    const am = M(0xf7f7f7); box(0.95,0.07,0.15,am,0.38,0,0,arm); cyl(0.12,0.12,0.07,am,0,0,0,arm); cyl(0.075,0.075,0.07,am,0.82,0,0,arm);
+    const out = V(sx+0.62, 0.35, sz);
+    wire(out.clone().add(V(0,0,-0.06)), pinTop(6), 0xff9a2e, 2.8, g2, 0.04);
+    wire(out.clone(), hole(41,"Tp"), 0xd83a2e, 0.9, g2, 0.04);
+    wire(out.clone().add(V(0,0,0.06)), hole(41,"Tm"), 0x6b3b17, 0.8, g2, 0.04);
+    parts.servo = {arm}; }
+
+  /* ---------- kamera ---------- */
+  const view = { rotY:0, rotX:0, dist:1, cx:CX, dist0:1 };
+  function applyView(){ pivot.rotation.y = view.rotY; pivot.rotation.x = view.rotX;
+    const vf = camera.fov*Math.PI/180, hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
+    const d = 9.0/Math.sin(Math.min(vf,hf)/2)*0.92*view.dist;
+    camera.position.set(view.cx, 0.8*d, CZ+0.6*d); camera.lookAt(view.cx, 0.5, CZ+0.2); needRender = true; }
+  const ptrs = new Map(); let pinch0 = 0, dist0 = 1;
+  const cvs = renderer.domElement;
+  cvs.addEventListener("pointerdown", e=>{ cvs.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===2){ const [a,b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x-b.x,a.y-b.y); dist0 = view.dist; } });
+  cvs.addEventListener("pointermove", e=>{ if(!ptrs.has(e.pointerId)) return; const p = ptrs.get(e.pointerId);
+    if(ptrs.size===1){ view.rotY += (e.clientX-p.x)*0.008; view.rotX = Math.max(-0.45, Math.min(0.5, view.rotX + (e.clientY-p.y)*0.005)); }
+    p.x = e.clientX; p.y = e.clientY;
+    if(ptrs.size===2){ const [a,b] = [...ptrs.values()]; const d = Math.hypot(a.x-b.x,a.y-b.y); if(pinch0>0) view.dist = Math.max(0.35, Math.min(1.6, dist0*pinch0/d)); }
+    applyView(); });
+  const endP = e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2) pinch0 = 0; };
+  ["pointerup","pointercancel","lostpointercapture"].forEach(ev=> cvs.addEventListener(ev, endP));
+  cvs.addEventListener("wheel", e=>{ e.preventDefault(); view.dist = Math.max(0.35, Math.min(1.6, view.dist*(1+Math.sign(e.deltaY)*0.08))); applyView(); }, {passive:false});
+  document.getElementById("resetView").onclick = ()=>{ view.rotY=0; view.rotX=0; view.dist=view.dist0; applyView(); };
+  scene3.focus = (cx, dist)=>{ view.cx = cx; pivot.position.x = cx; root.position.x = -cx; view.rotY = 0; view.rotX = 0; view.dist = view.dist0 = dist; applyView(); };
+  function resize(){ const w = stage.clientWidth, h = stage.clientHeight; if(!w || !h) return; renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); applyView(); }
+  new ResizeObserver(resize).observe(stage); resize();
+
+  scene3.ok = true;
+  const BOTTOM = ["light","pot","buzzer"];
+  scene3.setVisible = (list)=>{
+    Object.keys(groups).forEach(id=>{
+      groups[id].visible = id==="power" ? list.length>0 : id==="bottom" ? list.some(x=>BOTTOM.includes(x)) : list.includes(id); });
+    needRender = true;
+  };
+  let servoShown = 90;
+  function frame(t){
+    requestAnimationFrame(frame);
+    const sounding = board.toneFreq>0;
+    if(Math.abs(servoShown - board.servo) > 0.5){ servoShown += (board.servo - servoShown)*0.25; needRender = true; }
+    if(!needRender && !sounding) return;
+    needRender = false;
+    const Pn = board.pins;
+    ledLMat.emissiveIntensity = (Pn[13]||0)*2.4;
+    ["led10","led9","led8"].forEach(id=>{ const v = Pn[+id.slice(3)]||0; parts[id].mat.emissiveIntensity = v*1.7; parts[id].mat.opacity = 0.72+v*0.28; parts[id].light.intensity = v*1.6; });
+    parts.button.cap.position.y = ui.button ? parts.button.y0-0.07 : parts.button.y0;
+    parts.buzzer.ringMat.opacity = sounding ? 0.35+0.35*Math.sin(t/60) : 0;
+    parts.buzzer.ring.scale.setScalar(sounding ? 1+0.12*Math.sin(t/60) : 1);
+    parts.light.glowMat.opacity = 0.04 + ui.A0/1023*0.42;
+    parts.pot.knob.rotation.y = -(ui.A1/1023*270-135)*Math.PI/180;
+    parts.servo.arm.rotation.y = (servoShown-90)*Math.PI/180;
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* ================= BLOKI W STYLU CODEDESIGNER ================= */
+const C_DANE="#5CB85C", C_TEKST="#5BA58C", C_ZMIENNE="#A55B80", C_KONTROLA="#F2A33A", C_DIODY="#D5455F", C_DZWIEKI="#A94EB9", C_SERVO="#B08A30", C_STER="#6E9FB3", C_CZUJ="#6BAED6", C_PROG="#3F8CA8";
+Object.assign(Blockly.Msg, { NEW_VARIABLE:"Utwórz zmienną…", NEW_VARIABLE_TITLE:"Nazwa nowej zmiennej:" });
+const DPINS = [["0(RX)","0"],["1(TX)","1"]].concat([2,3,4,5,6,7,8,9,10,11,12,13].map(n=>[String(n),String(n)]));
+const APINS = ["A0","A1","A2","A3","A4","A5"].map(a=>[a,a]);
+const withDefault = (opts, v)=> { const i = opts.findIndex(o=>o[1]===v); return i>0 ? [opts[i]].concat(opts.filter((_,k)=>k!==i)) : opts; };
+Blockly.common.defineBlocksWithJsonArray([
+  {type:"cd_program", message0:"Program %1 na start %2 %3 powtarzaj zawsze %4 %5", args0:[{type:"input_dummy"},{type:"input_dummy"},{type:"input_statement",name:"SETUP"},{type:"input_dummy"},{type:"input_statement",name:"LOOP"}], colour:C_PROG,
+   tooltip:"„Na start” wykonuje się raz, „powtarzaj zawsze” w kółko."},
+  // Kontrola
+  {type:"cd_if", message0:"jeżeli %1", args0:[{type:"input_value",name:"COND",check:"Boolean"}], message1:"%1", args1:[{type:"input_statement",name:"DO"}], previousStatement:null, nextStatement:null, colour:C_KONTROLA},
+  {type:"cd_ifelse", message0:"jeżeli %1", args0:[{type:"input_value",name:"COND",check:"Boolean"}], message1:"%1", args1:[{type:"input_statement",name:"DO"}], message2:"w przeciwnym razie", message3:"%1", args3:[{type:"input_statement",name:"ELSE"}], previousStatement:null, nextStatement:null, colour:C_KONTROLA},
+  {type:"cd_wait_until", message0:"czekaj aż %1", args0:[{type:"input_value",name:"COND",check:"Boolean"}], previousStatement:null, nextStatement:null, colour:C_KONTROLA},
+  {type:"cd_wait", message0:"czekaj %1 %2", args0:[{type:"input_value",name:"T",check:"Number"},{type:"field_dropdown",name:"U",options:[["sekund","s"],["milisekund","ms"]]}], inputsInline:true, previousStatement:null, nextStatement:null, colour:C_KONTROLA},
+  {type:"cd_time", message0:"liczba %1 od uruchomienia", args0:[{type:"field_dropdown",name:"U",options:[["sekund","s"],["milisekund","ms"]]}], output:"Number", colour:C_KONTROLA},
+  {type:"cd_repeat", message0:"powtórz %1 razy", args0:[{type:"input_value",name:"N",check:"Number"}], message1:"%1", args1:[{type:"input_statement",name:"DO"}], previousStatement:null, nextStatement:null, colour:C_KONTROLA},
+  {type:"cd_while", message0:"powtarzaj %1 %2", args0:[{type:"field_dropdown",name:"M",options:[["dopóki","while"],["aż","until"]]},{type:"input_value",name:"COND",check:"Boolean"}], message1:"%1", args1:[{type:"input_statement",name:"DO"}], previousStatement:null, nextStatement:null, colour:C_KONTROLA},
+  // Wyrażenia
+  {type:"cd_compare", message0:"%1 %2 %3", args0:[{type:"input_value",name:"A"},{type:"field_dropdown",name:"OP",options:[["=","=="],["≠","!="],["<","<"],["≤","<="],[">",">"],["≥",">="]]},{type:"input_value",name:"B"}], inputsInline:true, output:"Boolean", colour:C_DANE},
+  {type:"cd_logic", message0:"%1 %2 %3", args0:[{type:"input_value",name:"A",check:"Boolean"},{type:"field_dropdown",name:"OP",options:[["i","&&"],["lub","||"]]},{type:"input_value",name:"B",check:"Boolean"}], inputsInline:true, output:"Boolean", colour:C_DANE},
+  {type:"cd_not", message0:"nie %1", args0:[{type:"input_value",name:"A",check:"Boolean"}], output:"Boolean", colour:C_DANE},
+  {type:"cd_bool", message0:"%1", args0:[{type:"field_dropdown",name:"V",options:[["prawda","true"],["fałsz","false"]]}], output:"Boolean", colour:C_DANE},
+  {type:"cd_arith", message0:"%1 %2 %3", args0:[{type:"input_value",name:"A",check:"Number"},{type:"field_dropdown",name:"OP",options:[["+","+"],["−","-"],["×","*"],["÷","/"]]},{type:"input_value",name:"B",check:"Number"}], inputsInline:true, output:"Number", colour:C_DANE},
+  {type:"cd_mod", message0:"reszta z dzielenia %1 przez %2", args0:[{type:"input_value",name:"A",check:"Number"},{type:"input_value",name:"B",check:"Number"}], inputsInline:true, output:"Number", colour:C_DANE},
+  {type:"cd_random", message0:"losowa liczba od %1 do %2", args0:[{type:"input_value",name:"A",check:"Number"},{type:"input_value",name:"B",check:"Number"}], inputsInline:true, output:"Number", colour:C_DANE},
+  // Diody
+  {type:"cd_led", message0:"%1 diodę LED pin %2", args0:[{type:"field_dropdown",name:"ON",options:[["zapal","1"],["zgaś","0"]]},{type:"field_dropdown",name:"PIN",options:withDefault(DPINS,"10")}], previousStatement:null, nextStatement:null, colour:C_DIODY},
+  {type:"cd_led_state", message0:"zapalona? dioda LED pin %1", args0:[{type:"field_dropdown",name:"PIN",options:withDefault(DPINS,"10")}], output:"Boolean", colour:C_CZUJ},
+  // Dźwięki (brzęczyk na pinie 7)
+  {type:"cd_note", message0:"zagraj dźwięk %1 %2", args0:[{type:"field_dropdown",name:"N",options:[["C | Do","262"],["D | Re","294"],["E | Mi","330"],["F | Fa","349"],["G | Sol","392"],["A | La","440"],["H | Si","494"],["C2 | Do","523"]]},{type:"field_dropdown",name:"D",options:[["ćwierćnuta","250"],["ósemka","125"],["półnuta","500"],["cała nuta","1000"]]}], previousStatement:null, nextStatement:null, colour:C_DZWIEKI, tooltip:"Brzęczyk na pinie 7"},
+  {type:"cd_tone", message0:"zagraj dźwięk %1 Hz %2 ms", args0:[{type:"input_value",name:"F",check:"Number"},{type:"input_value",name:"D",check:"Number"}], inputsInline:true, previousStatement:null, nextStatement:null, colour:C_DZWIEKI, tooltip:"Brzęczyk na pinie 7"},
+  // Servo
+  {type:"cd_servo", message0:"Servo pin %1 ustaw (0°~180°) %2", args0:[{type:"field_dropdown",name:"PIN",options:[["6","6"],["3","3"],["5","5"],["9","9"],["10","10"],["11","11"]]},{type:"input_value",name:"A",check:"Number"}], inputsInline:true, previousStatement:null, nextStatement:null, colour:C_SERVO},
+  // Sterowanie
+  {type:"cd_pot", message0:"potencjometr pin %1 odczytaj stan", args0:[{type:"field_dropdown",name:"PIN",options:withDefault(APINS,"A1")}], output:"Number", colour:C_STER},
+  {type:"cd_button", message0:"przycisk pin %1 %2 kliknięty?", args0:[{type:"field_dropdown",name:"PIN",options:withDefault(DPINS,"2")},{type:"field_dropdown",name:"IS",options:[["jest","1"],["nie jest","0"]]}], output:"Boolean", colour:C_STER},
+  // Czujniki analogowe
+  {type:"cd_light_val", message0:"light pin %1 odczytaj natężenie", args0:[{type:"field_dropdown",name:"PIN",options:APINS}], output:"Number", colour:C_CZUJ},
+  {type:"cd_light_is", message0:"light pin %1 wskazuje, że jest %2", args0:[{type:"field_dropdown",name:"PIN",options:APINS},{type:"field_dropdown",name:"S",options:[["jasno","1"],["ciemno","0"]]}], output:"Boolean", colour:C_CZUJ}
+]);
+const theme = Blockly.Theme.defineTheme("cd", {base:Blockly.Themes.Classic,
+  blockStyles:{ math_blocks:{colourPrimary:C_DANE}, text_blocks:{colourPrimary:C_TEKST}, variable_blocks:{colourPrimary:C_ZMIENNE}, logic_blocks:{colourPrimary:C_DANE}, loop_blocks:{colourPrimary:C_KONTROLA} },
+  categoryStyles:{},
+  componentStyles:{workspaceBackgroundColour:"#E8E8E8", toolboxBackgroundColour:"#F4F4F4", toolboxForegroundColour:"#222", flyoutBackgroundColour:"#E0E0E0", flyoutForegroundColour:"#333", flyoutOpacity:0.97, scrollbarColour:"#B9B9B9"},
+  fontStyle:{family:"Lexend, system-ui, sans-serif", weight:"500", size:12}});
+
+/* dialogi Blockly (np. nowa zmienna) */
+const modal = document.getElementById("modal"), modalMsg = document.getElementById("modalMsg"), modalInput = document.getElementById("modalInput");
+let modalCb = null, modalMode = "prompt";
+function openModal(mode, msg, def, cb, okLabel){ modalMode = mode; modalCb = cb; modalMsg.textContent = msg;
+  modalInput.style.display = mode==="prompt" ? "" : "none"; modalInput.value = def||"";
+  document.getElementById("modalCancel").style.display = mode==="alert" ? "none" : "";
+  document.getElementById("modalOk").textContent = okLabel || "OK";
+  modal.classList.add("show"); setTimeout(()=> (mode==="prompt" ? modalInput : document.getElementById("modalOk")).focus(), 30); }
+function closeModal(ok){ modal.classList.remove("show"); const cb = modalCb; modalCb = null; if(!cb) return;
+  if(modalMode==="prompt") cb(ok ? modalInput.value : null); else if(modalMode==="confirm") cb(!!ok); else cb(); }
+document.getElementById("modalOk").onclick = ()=>closeModal(true);
+document.getElementById("modalCancel").onclick = ()=>closeModal(false);
+modalInput.addEventListener("keydown", e=>{ if(e.key==="Enter") closeModal(true); if(e.key==="Escape") closeModal(false); });
+Blockly.dialog.setPrompt((m,d,cb)=>openModal("prompt",m,d,cb));
+Blockly.dialog.setAlert((m,cb)=>openModal("alert",m,"",cb||(()=>{})));
+Blockly.dialog.setConfirm((m,cb)=>openModal("confirm",m,"",cb));
+
+
+const B = {
+  n:v=>({shadow:{type:"math_number",fields:{NUM:v}}}), nb:v=>({type:"math_number",fields:{NUM:v}}),
+  chain(a){ for(let i=a.length-2;i>=0;i--) a[i].next = {block:a[i+1]}; return {block:a[0]}; },
+  led:(on,pin)=>({type:"cd_led",fields:{ON:on?"1":"0",PIN:String(pin)}}),
+  wait:(t,u="s")=>({type:"cd_wait",fields:{U:u},inputs:{T:B.n(t)}}),
+  btn:()=>({type:"cd_button",fields:{PIN:"2",IS:"1"}}),
+  light:s=>({type:"cd_light_is",fields:{PIN:"A0",S:s?"1":"0"}}),
+  tone:(f,d)=>({type:"cd_tone",inputs:{F:B.n(f),D:B.n(d)}}),
+  note:(n,d)=>({type:"cd_note",fields:{N:String(n),D:String(d)}}),
+  IF:(c,t)=>({type:"cd_if",inputs:{COND:{block:c},DO:B.chain(t)}}),
+  IFE:(c,t,e)=>({type:"cd_ifelse",inputs:{COND:{block:c},DO:B.chain(t),ELSE:B.chain(e)}}),
+  servo:e=>({type:"cd_servo",fields:{PIN:"6"},inputs:{A:{shadow:{type:"math_number",fields:{NUM:90}},block:e}}}),
+  div:(a,b)=>({type:"cd_arith",fields:{OP:"/"},inputs:{A:{block:a},B:{block:b}}}),
+  pot:()=>({type:"cd_pot",fields:{PIN:"A1"}}),
+  prog(setup, loop){ const inputs = {}; if(setup.length) inputs.SETUP = B.chain(setup); if(loop.length) inputs.LOOP = B.chain(loop);
+    return {blocks:{languageVersion:0, blocks:[{type:"cd_program",x:24,y:24,deletable:false,inputs}]}}; }
+};
+/* bloki → program Arduino (C++) */
+function cppName(n){ let s = String(n).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ł/g,"l").replace(/Ł/g,"L").replace(/[^A-Za-z0-9_]/g,"_"); if(!s || /^[0-9]/.test(s)) s = "v_"+s; return s; }
+function generateCpp(){
+  const root = ws.getBlocksByType("cd_program",false)[0];
+  if(!root) return null;
+  const ctx = {out:new Set(), inp:new Set(), servos:new Set(), loopN:0};
+  const ind = n=>"  ".repeat(n);
+  const val = (b,name,def="0")=>{ const t = b.getInputTargetBlock(name); return t ? expr(t) : def; };
+  function expr(b){
+    if(!b || !b.isEnabled()) return "0";
+    switch(b.type){
+      case "math_number": return String(b.getFieldValue("NUM"));
+      case "text": return JSON.stringify(b.getFieldValue("TEXT"));
+      case "cd_bool": return b.getFieldValue("V");
+      case "cd_compare": return "("+val(b,"A")+" "+b.getFieldValue("OP")+" "+val(b,"B")+")";
+      case "cd_logic": return "("+val(b,"A","false")+" "+b.getFieldValue("OP")+" "+val(b,"B","false")+")";
+      case "cd_not": return "!("+val(b,"A","false")+")";
+      case "cd_arith": return "("+val(b,"A")+" "+b.getFieldValue("OP")+" "+val(b,"B")+")";
+      case "cd_mod": return "("+val(b,"A")+" % "+val(b,"B","1")+")";
+      case "cd_random": return "random("+val(b,"A")+", "+val(b,"B")+" + 1)";
+      case "cd_time": return b.getFieldValue("U")==="s" ? "(millis() / 1000)" : "millis()";
+      case "cd_led_state": return "(digitalRead("+b.getFieldValue("PIN")+") == HIGH)";
+      case "cd_pot": return "analogRead("+b.getFieldValue("PIN")+")";
+      case "cd_button": ctx.inp.add(b.getFieldValue("PIN")); return "(digitalRead("+b.getFieldValue("PIN")+") == "+(b.getFieldValue("IS")==="1"?"HIGH":"LOW")+")";
+      case "cd_light_val": return "analogRead("+b.getFieldValue("PIN")+")";
+      case "cd_light_is": return "(analogRead("+b.getFieldValue("PIN")+") "+(b.getFieldValue("S")==="1"?">= 500":"< 500")+")";
+      case "variables_get": return cppName(b.getField("VAR").getText());
+      default: return "0";
+    }
+  }
+  function stmts(b,n){ let o=""; for(; b; b=b.getNextBlock()){ if(b.isEnabled()) o += stmt(b,n); } return o; }
+  function stmt(b,n){
+    const p = ind(n);
+    switch(b.type){
+      case "cd_led": ctx.out.add(b.getFieldValue("PIN")); return p+"digitalWrite("+b.getFieldValue("PIN")+", "+(b.getFieldValue("ON")==="1"?"HIGH":"LOW")+");\n";
+      case "cd_wait": { const t = val(b,"T"); const ms = b.getFieldValue("U")==="s" ? (/^[\d.]+$/.test(t) ? String(Math.round(parseFloat(t)*1000)) : t+" * 1000") : t; return p+"delay("+ms+");\n"; }
+      case "cd_wait_until": return p+"while (!"+val(b,"COND","true")+") {\n"+p+"}\n";
+      case "cd_if": return p+"if ("+val(b,"COND","false")+") {\n"+stmts(b.getInputTargetBlock("DO"),n+1)+p+"}\n";
+      case "cd_ifelse": return p+"if ("+val(b,"COND","false")+") {\n"+stmts(b.getInputTargetBlock("DO"),n+1)+p+"} else {\n"+stmts(b.getInputTargetBlock("ELSE"),n+1)+p+"}\n";
+      case "cd_repeat": { const c = "i"+(++ctx.loopN); return p+"for (int "+c+" = 0; "+c+" < "+val(b,"N")+"; "+c+"++) {\n"+stmts(b.getInputTargetBlock("DO"),n+1)+p+"}\n"; }
+      case "cd_while": { const c = val(b,"COND","false"); return p+"while ("+(b.getFieldValue("M")==="until" ? "!"+c : c)+") {\n"+stmts(b.getInputTargetBlock("DO"),n+1)+p+"}\n"; }
+      case "cd_note": { const d = b.getFieldValue("D"); return p+"tone(7, "+b.getFieldValue("N")+", "+d+");\n"+p+"delay("+d+");\n"; }
+      case "cd_tone": { const d = val(b,"D"); return p+"tone(7, "+val(b,"F")+", "+d+");\n"+p+"delay("+d+");\n"; }
+      case "cd_servo": { const pin = b.getFieldValue("PIN"); ctx.servos.add(pin); return p+"serwo"+pin+".write("+val(b,"A")+");\n"; }
+      case "variables_set": return p+cppName(b.getField("VAR").getText())+" = "+val(b,"VALUE")+";\n";
+      case "math_change": { const v = cppName(b.getField("VAR").getText()); return p+v+" = "+v+" + "+val(b,"DELTA")+";\n"; }
+      default: return "";
+    }
+  }
+  const setup = stmts(root.getInputTargetBlock("SETUP"),1), loop = stmts(root.getInputTargetBlock("LOOP"),1);
+  let h = "";
+  if(ctx.servos.size) h += "#include <Servo.h>\n" + [...ctx.servos].map(s=>"Servo serwo"+s+";").join("\n") + "\n";
+  h += ws.getAllVariables().map(v=>"int "+cppName(v.name)+" = 0;").join("\n") + "\n";
+  h += "void setup() {\n";
+  [...ctx.out].forEach(pn=> h += "  pinMode("+pn+", OUTPUT);\n");
+  [...ctx.inp].forEach(pn=> h += "  pinMode("+pn+", INPUT);\n");
+  [...ctx.servos].forEach(s=> h += "  serwo"+s+".attach("+s+");\n");
+  return h + setup + "}\nvoid loop() {\n" + loop + "}\n";
+}
+
+
+/* ================= LEKCJE ================= */
+const LESSONS = [
+  { id:"l1", title:"Zapalanie diody", goal:"Dioda zapala się na 1 sekundę i gaśnie na 1 sekundę, w kółko.",
+    parts:[{type:"led",pin:10,slot:0}],
+    need:["płytka Arduino UNO i kabel USB","płytka stykowa","1 dioda LED (czerwona)","1 rezystor 220 Ω","przewody połączeniowe"],
+    steps:["Wstaw diodę w płytkę stykową. Dłuższa nóżka (+) po lewej.","Wstaw rezystor 220 Ω przed dłuższą nóżką diody.","Połącz pin 10 Arduino z rezystorem (czerwony przewód).","Połącz krótszą nóżkę diody (−) z niebieską linią −.","Połącz pin GND Arduino z niebieską linią − (czarny przewód)."],
+    sol:()=>B.prog([],[B.led(1,10),B.wait(1),B.led(0,10),B.wait(1)]) },
+  { id:"l2", title:"Dwie diody na zmianę", goal:"Raz świeci czerwona, raz zielona dioda, na zmianę co 1 sekundę.",
+    parts:[{type:"led",pin:10,slot:0},{type:"led",pin:8,slot:1}],
+    need:["wszystko z lekcji 1","1 dioda LED zielona","1 rezystor 220 Ω","przewody połączeniowe"],
+    steps:["Zostaw czerwoną diodę z lekcji 1 (pin 10).","Wstaw zieloną diodę i rezystor 220 Ω w drugim rzędzie.","Połącz pin 8 z rezystorem zielonej diody (zielony przewód).","Krótszą nóżkę zielonej diody połącz z linią −."],
+    sol:()=>B.prog([],[B.led(1,10),B.led(0,8),B.wait(1),B.led(0,10),B.led(1,8),B.wait(1)]) },
+  { id:"l3", title:"Sygnalizacja świetlna", goal:"Światła jak na skrzyżowaniu: zielone 3 s, żółte 1 s, czerwone 3 s.",
+    parts:[{type:"led",pin:10,slot:0},{type:"led",pin:9,slot:1},{type:"led",pin:8,slot:2}],
+    need:["wszystko z lekcji 2","1 dioda LED żółta","1 rezystor 220 Ω"],
+    steps:["Diody: czerwona na pin 10, żółta na pin 9, zielona na pin 8.","Każda dioda ma swój rezystor 220 Ω przed dłuższą nóżką.","Krótsze nóżki wszystkich diod połącz z linią −.","Pin GND połącz z linią −."],
+    sol:()=>B.prog([],[B.led(0,10),B.led(1,8),B.wait(3),B.led(0,8),B.led(1,9),B.wait(1),B.led(0,9),B.led(1,10),B.wait(3)]) },
+  { id:"l4", title:"Sygnał dźwiękowy", goal:"Brzęczyk piszczy krótko co sekundę, jak alarm w samochodzie.",
+    parts:[{type:"buzzer",slot:1}],
+    need:["płytka Arduino UNO i kabel USB","płytka stykowa","1 brzęczyk pasywny","przewody połączeniowe"],
+    steps:["Wstaw brzęczyk w płytkę stykową.","Połącz pin 7 z nóżką + brzęczyka (fioletowy przewód).","Drugą nóżkę połącz z linią −.","Pin GND połącz z linią −."],
+    sol:()=>B.prog([],[B.tone(880,200),B.wait(800,"ms")]) },
+  { id:"l5", title:"Przycisk zapala diodę", goal:"Dioda świeci tylko wtedy, gdy wciskasz przycisk.",
+    parts:[{type:"led",pin:10,slot:0},{type:"button",slot:2}],
+    need:["czerwona dioda i rezystor 220 Ω z lekcji 1","1 przycisk","1 rezystor 10 kΩ","przewody połączeniowe"],
+    steps:["Zostaw czerwoną diodę na pinie 10.","Wstaw przycisk w płytkę stykową.","Jedną nóżkę przycisku połącz z linią + (czerwony przewód).","Przeciwległą nóżkę połącz z pinem 2 (niebieski przewód).","Od nóżki połączonej z pinem 2 wstaw rezystor 10 kΩ do linii −.","Pin 5V połącz z linią +, a pin GND z linią −."],
+    sol:()=>B.prog([],[B.IFE(B.btn(),[B.led(1,10)],[B.led(0,10)])]) },
+  { id:"l6", title:"Przejście dla pieszych", goal:"Samochody mają zielone. Gdy pieszy wciśnie przycisk, światła zmieniają się na czerwone i z powrotem.",
+    parts:[{type:"led",pin:10,slot:0},{type:"led",pin:9,slot:1},{type:"led",pin:8,slot:2},{type:"button",slot:3}],
+    need:["3 diody z rezystorami 220 Ω z lekcji 3","przycisk i rezystor 10 kΩ z lekcji 5"],
+    steps:["Podłącz trzy diody jak w lekcji 3.","Podłącz przycisk jak w lekcji 5 (pin 2).","Pin 5V połącz z linią +, a pin GND z linią −."],
+    sol:()=>B.prog([B.led(1,8)],[B.IF(B.btn(),[B.led(0,8),B.led(1,9),B.wait(2),B.led(0,9),B.led(1,10),B.wait(5),B.led(1,9),B.wait(1),B.led(0,10),B.led(0,9),B.led(1,8)])]) },
+  { id:"l7", title:"Lampka nocna", goal:"Gdy robi się ciemno, dioda sama się zapala. Gdy jest jasno, gaśnie.",
+    parts:[{type:"led",pin:10,slot:0},{type:"ldr",slot:2}],
+    need:["czerwona dioda i rezystor 220 Ω","1 czujnik światła (fotorezystor)","1 rezystor 10 kΩ","przewody połączeniowe"],
+    steps:["Zostaw czerwoną diodę na pinie 10.","Wstaw czujnik światła w płytkę stykową.","Jedną nóżkę czujnika połącz z linią + (czerwony przewód).","Drugą nóżkę połącz z pinem A0 (pomarańczowy przewód).","Od nóżki połączonej z A0 wstaw rezystor 10 kΩ do linii −.","Pin 5V połącz z linią +, a pin GND z linią −."],
+    sol:()=>B.prog([],[B.IFE(B.light(0),[B.led(1,10)],[B.led(0,10)])]) },
+  { id:"l8", title:"Ruch serwa", goal:"Ramię serwa ustawia się kolejno na 0°, 90° i 180°.",
+    parts:[{type:"servo"}],
+    need:["płytka Arduino UNO i kabel USB","1 serwo SG90","przewody połączeniowe"],
+    steps:["Pomarańczowy przewód serwa połącz z pinem 6.","Czerwony przewód serwa połącz z linią + (5V).","Brązowy przewód serwa połącz z linią − (GND).","Pin 5V połącz z linią +, a pin GND z linią −."],
+    sol:()=>B.prog([],[B.servoA(0),B.wait(1),B.servoA(90),B.wait(1),B.servoA(180),B.wait(1)]) }
+];
+B.servoA = a => ({type:"cd_servo",fields:{PIN:"6"},inputs:{A:B.n(a)}});
+
+const ws = Blockly.inject("blocklyDiv",{ readOnly:true, theme, renderer:"geras", sounds:false, trashcan:false,
+  zoom:{controls:false, wheel:true, startScale:1.1, maxScale:2, minScale:0.4, pinch:true}, move:{scrollbars:true, drag:true, wheel:false} });
+function showProgram(){
+  ws.clear(); Blockly.serialization.workspaces.load(current.sol(), ws);
+  requestAnimationFrame(()=>{ Blockly.svgResize(ws); ws.setScale(1.1); ws.scrollCenter(); const m = ws.getMetrics();
+    if(m && (m.contentWidth > m.viewWidth || m.contentHeight > m.viewHeight)) ws.zoomToFit(); ws.scrollCenter(); });
+}
+function renderLessons(){
+  const ul = document.getElementById("lessons");
+  ul.innerHTML = LESSONS.map((l,i)=>`<li><button type="button" data-id="${l.id}" aria-current="${l===current}"><span class="no">${i+1}</span>${l.title}</button></li>`).join("");
+  ul.querySelectorAll("button").forEach(b=> b.onclick = ()=>{ openLesson(b.dataset.id); if(isMobile()) setView("wiring"); });
+}
+const push = document.getElementById("pushBtn");
+const setBtn = v => { ui.button = v; push.classList.toggle("down", v); scheduleRender(); };
+push.addEventListener("pointerdown", e=>{ e.preventDefault(); push.setPointerCapture?.(e.pointerId); setBtn(true); });
+["pointerup","pointercancel","lostpointercapture"].forEach(ev=> push.addEventListener(ev, ()=>setBtn(false)));
+push.addEventListener("keydown", e=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); setBtn(true); } });
+push.addEventListener("keyup", e=>{ if(e.key===" "||e.key==="Enter") setBtn(false); });
+push.addEventListener("contextmenu", e=>e.preventDefault());
+const partIds = l => l.parts.map(p=> p.type==="led" ? "led"+p.pin : p.type==="ldr" ? "light" : p.type);
+const lightRange = document.getElementById("lightRange");
+lightRange.addEventListener("input", ()=>{ ui.A0 = +lightRange.value; document.getElementById("lightVal").textContent = ui.A0 < 500 ? "ciemno" : "jasno"; scheduleRender(); });
+function openLesson(id){
+  if(board.running){ runToken++; stopRun(); }
+  current = LESSONS.find(l=>l.id===id) || LESSONS[0];
+  try{ localStorage.setItem("cd4:current", current.id); }catch(e){}
+  const i = LESSONS.indexOf(current);
+  document.getElementById("goal").innerHTML = `<b>Lekcja ${i+1}: ${current.title}</b>${current.goal}`;
+  document.getElementById("partsList").innerHTML = current.need.map(t=>`<li>${t}</li>`).join("");
+  document.getElementById("stepsList").innerHTML = current.steps.map(t=>`<li>${t}</li>`).join("");
+  document.getElementById("pressBox").hidden = !current.parts.some(p=>p.type==="button");
+  document.getElementById("lightBox").hidden = !current.parts.some(p=>p.type==="ldr");
+  board.reset(); hideMsg(); ui.button = false; ui.A0 = +lightRange.value;
+  if(scene3.ok){ scene3.setVisible(partIds(current)); const sv = current.parts.some(p=>p.type==="servo"); scene3.focus(sv ? 1.6 : -2.1, sv ? 0.78 : 0.7); }
+  renderLessons(); showProgram();
+}
+
+/* ================= URUCHAMIANIE ================= */
+const runBtn = document.getElementById("runBtn");
+let runToken = 0;
+function setRunUi(r){ runBtn.classList.toggle("running", r); document.getElementById("runLabel").textContent = r ? "Zatrzymaj" : "Uruchom";
+  document.getElementById("runIcon").setAttribute("d", r ? "M2.5 2.5h9v9h-9z" : "M3 1.5v11l9-5.5z"); }
+async function run(){
+  const src = generateCpp();
+  let fn; try{ fn = compile(src); }catch(e){ showMsg("err","Coś poszło nie tak: "+plError(e)); return; }
+  hideMsg();
+  const token = ++runToken;
+  board.reset(); board.running = true; setRunUi(true);
+  if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
+  if(isMobile()) setView("wiring");
+  try{ await fn(...API_NAMES.map(n=>api[n])); }
+  catch(e){ if(e!==STOP && token===runToken) showMsg("err","Program się zatrzymał: "+plError(e)); }
+  finally{ if(token===runToken) stopRun(); }
+}
+function stopRun(){ board.running = false; api.noTone(); board.pins = {}; board.servo = 90; scheduleRender(); setRunUi(false); }
+runBtn.onclick = ()=>{ if(board.running){ runToken++; stopRun(); } else run(); };
+
+const isMobile = ()=> window.matchMedia("(max-width: 1000px)").matches;
+function setView(v){ document.getElementById("app").dataset.view = v;
+  document.querySelectorAll("nav.tabs button").forEach(b=> b.setAttribute("aria-current", b.dataset.view===v));
+  if(v==="program") requestAnimationFrame(()=>{ Blockly.svgResize(ws); ws.scrollCenter(); }); }
+document.querySelectorAll("nav.tabs button").forEach(b=> b.onclick = ()=> setView(b.dataset.view));
+window.addEventListener("resize", ()=> Blockly.svgResize(ws));
+let start = "l1"; try{ start = localStorage.getItem("cd4:current") || "l1"; }catch(e){}
+openLesson(start);
+</script>
+</body>
+</html>
