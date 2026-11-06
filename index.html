@@ -551,13 +551,13 @@ function scheduleRender(){ needRender = true; if(typeof renderStates === 'functi
 })();
 
 /* ================= BLOKI W STYLU CODEDESIGNER ================= */
-const C_DANE="#5CB85C", C_TEKST="#5BA58C", C_ZMIENNE="#A55B80", C_KONTROLA="#F2A33A", C_DIODY="#D5455F", C_DZWIEKI="#A94EB9", C_SERVO="#B08A30", C_STER="#6E9FB3", C_CZUJ="#6BAED6", C_PROG="#3F8CA8";
+const C_DANE="#72BE67", C_TEKST="#5BA58C", C_ZMIENNE="#A55B80", C_KONTROLA="#F5A947", C_DIODY="#D9465E", C_DZWIEKI="#B04CBF", C_SERVO="#B3892C", C_STER="#71AFD9", C_CZUJ="#71AFD9", C_PROG="#F7CE46";
 Object.assign(Blockly.Msg, { NEW_VARIABLE:"Utwórz zmienną…", NEW_VARIABLE_TITLE:"Nazwa nowej zmiennej:" });
 const DPINS = [["0(RX)","0"],["1(TX)","1"]].concat([2,3,4,5,6,7,8,9,10,11,12,13].map(n=>[String(n),String(n)]));
 const APINS = ["A0","A1","A2","A3","A4","A5"].map(a=>[a,a]);
 const withDefault = (opts, v)=> { const i = opts.findIndex(o=>o[1]===v); return i>0 ? [opts[i]].concat(opts.filter((_,k)=>k!==i)) : opts; };
 Blockly.common.defineBlocksWithJsonArray([
-  {type:"cd_program", message0:"Program %1 na start %2 %3 powtarzaj zawsze %4 %5", args0:[{type:"input_dummy"},{type:"input_dummy"},{type:"input_statement",name:"SETUP"},{type:"input_dummy"},{type:"input_statement",name:"LOOP"}], colour:C_PROG,
+  {type:"cd_program", message0:"Ustawienia początkowe %1 %2 Pętla programu %3 %4", args0:[{type:"input_dummy"},{type:"input_statement",name:"SETUP"},{type:"input_dummy"},{type:"input_statement",name:"LOOP"}], colour:C_PROG,
    tooltip:"„Na start” wykonuje się raz, „powtarzaj zawsze” w kółko."},
   // Kontrola
   {type:"cd_if", message0:"jeżeli %1", args0:[{type:"input_value",name:"COND",check:"Boolean"}], message1:"%1", args1:[{type:"input_statement",name:"DO"}], previousStatement:null, nextStatement:null, colour:C_KONTROLA},
@@ -593,7 +593,7 @@ Blockly.common.defineBlocksWithJsonArray([
 const theme = Blockly.Theme.defineTheme("cd", {base:Blockly.Themes.Classic,
   blockStyles:{ math_blocks:{colourPrimary:C_DANE}, text_blocks:{colourPrimary:C_TEKST}, variable_blocks:{colourPrimary:C_ZMIENNE}, logic_blocks:{colourPrimary:C_DANE}, loop_blocks:{colourPrimary:C_KONTROLA} },
   categoryStyles:{},
-  componentStyles:{workspaceBackgroundColour:"#E8E8E8", toolboxBackgroundColour:"#F4F4F4", toolboxForegroundColour:"#222", flyoutBackgroundColour:"#E0E0E0", flyoutForegroundColour:"#333", flyoutOpacity:0.97, scrollbarColour:"#B9B9B9"},
+  componentStyles:{workspaceBackgroundColour:"#FFFFFF", toolboxBackgroundColour:"#F4F4F4", toolboxForegroundColour:"#222", flyoutBackgroundColour:"#E6E6E6", flyoutForegroundColour:"#333", flyoutOpacity:0.97, scrollbarColour:"#C8C8C8"},
   fontStyle:{family:"Lexend, system-ui, sans-serif", weight:"500", size:12}});
 
 /* dialogi Blockly (np. nowa zmienna) */
@@ -738,7 +738,8 @@ const LESSONS = [
 B.servoA = a => ({type:"cd_servo",fields:{PIN:"6"},inputs:{A:B.n(a)}});
 
 const ws = Blockly.inject("blocklyDiv",{ readOnly:true, theme, renderer:"geras", sounds:false, trashcan:false,
-  zoom:{controls:false, wheel:true, startScale:1.1, maxScale:2, minScale:0.4, pinch:true}, move:{scrollbars:true, drag:true, wheel:false} });
+  zoom:{controls:false, wheel:true, startScale:1.1, maxScale:2, minScale:0.4, pinch:true}, move:{scrollbars:true, drag:true, wheel:false},
+  grid:{spacing:50, length:9, colour:"#C9C9C9", snap:false} });
 function showProgram(){
   ws.clear(); Blockly.serialization.workspaces.load(current.sol(), ws);
   requestAnimationFrame(()=>{ Blockly.svgResize(ws); ws.setScale(1.1); ws.scrollCenter(); const m = ws.getMetrics();
