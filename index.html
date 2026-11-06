@@ -401,15 +401,29 @@ function scheduleRender(){ needRender = true; if(typeof renderStates === 'functi
     [e1,e2].forEach(e=>{ const s = new THREE.Mesh(new THREE.SphereGeometry(0.11,14,10), bodyMat); s.position.copy(e).addScaledVector(dir, e===e1?0.05:-0.05); parent.add(s); });
     bands.forEach((col,i)=>{ const pos = e1.clone().addScaledVector(dir, bl*(0.2+0.17*i) + (i===3?bl*0.12:0)); rod(pos.clone().addScaledVector(dir,-0.028), pos.clone().addScaledVector(dir,0.028), 0.101, M(col,{metalness: col===0xc9a227?0.6:0.05}), parent); });
   }
+  const legLabel = (txt, bg) => { const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d");
+    g.fillStyle = bg; g.beginPath(); g.arc(64,64,56,0,7); g.fill(); g.lineWidth = 8; g.strokeStyle = "#fff"; g.stroke();
+    g.fillStyle = "#fff"; g.font = "800 96px Lexend, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 64, 70);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({map:t, depthTest:false, transparent:true})); s.scale.set(0.36,0.36,1); s.renderOrder = 10; return s; };
   function led(A, K, color, parent){
-    const mid = A.clone().add(K).multiplyScalar(0.5), yb = BBT + 0.42;
-    rod(A.clone().setY(BBT-0.05), A.clone().setY(yb-0.1), 0.02, metal, parent); rod(A.clone().setY(yb-0.1), mid.clone().setY(yb).add(V(0,0,0)).addScaledVector(A.clone().sub(K).normalize(), 0.06), 0.02, metal, parent);
-    rod(K.clone().setY(BBT-0.05), K.clone().setY(yb-0.1), 0.02, metal, parent); rod(K.clone().setY(yb-0.1), mid.clone().setY(yb).addScaledVector(K.clone().sub(A).normalize(), 0.06), 0.02, metal, parent);
+    const mid = A.clone().add(K).multiplyScalar(0.5), yb = BBT + 0.8, out = A.clone().sub(K).normalize();
+    const legMat = M(0xdfe3e6,{metalness:0.85, roughness:0.22}), r = 0.026;
+    // anoda (+): dłuższa nóżka z zagięciem
+    const a0 = A.clone().setY(BBT-0.05), a1 = A.clone().setY(BBT+0.28), a2 = A.clone().setY(BBT+0.4).addScaledVector(out, 0.09),
+          a3 = A.clone().setY(yb-0.14).addScaledVector(out, 0.09), a4 = mid.clone().setY(yb).addScaledVector(out, 0.08);
+    rod(a0,a1,r,legMat,parent); rod(a1,a2,r,legMat,parent); rod(a2,a3,r,legMat,parent); rod(a3,a4,r,legMat,parent);
+    // katoda (−): krótsza, prosta nóżka
+    const k0 = K.clone().setY(BBT-0.05), k1 = K.clone().setY(yb-0.14), k2 = mid.clone().setY(yb).addScaledVector(out, -0.08);
+    rod(k0,k1,r,legMat,parent); rod(k1,k2,r,legMat,parent);
     const mat = M(color,{transparent:true, opacity:0.78, emissive:color, emissiveIntensity:0, roughness:0.25});
     const g2 = new THREE.Group(); g2.position.set(mid.x, yb, mid.z); parent.add(g2);
     cyl(0.29,0.29,0.06,mat,0,0.03,0,g2); cyl(0.25,0.25,0.36,mat,0,0.24,0,g2);
     const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25,24,12,0,Math.PI*2,0,Math.PI/2), mat); dome.position.y = 0.42; g2.add(dome);
     const light = new THREE.PointLight(color, 0, 3); light.position.set(0,0.9,0); g2.add(light);
+    // oznaczenia: + przy anodzie, − przy katodzie
+    const plus = legLabel("+", "#D9342B"); plus.position.copy(A).setY(BBT+0.32).addScaledVector(out, 0.3); parent.add(plus);
+    const minus = legLabel("−", "#2F6FD6"); minus.position.copy(K).setY(BBT+0.32).addScaledVector(out, -0.3); parent.add(minus);
     return {mat, light};
   }
   const R220 = [0xd12b25, 0xd12b25, 0x6b3b17, 0xc9a227], R10K = [0x6b3b17, 0x111111, 0xe8781e, 0xc9a227];
