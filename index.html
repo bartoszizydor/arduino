@@ -59,6 +59,10 @@ main{min-height:0;display:grid;grid-template-columns:240px minmax(0,1.15fr) minm
 .stage canvas{display:block;width:100%;height:100%}
 .stage-help{position:absolute;left:10px;bottom:8px;font-size:12px;color:#4f5f66;pointer-events:none}
 .stage-reset{position:absolute;right:10px;bottom:8px}
+.stage.panning{cursor:move}
+.stage-tools{position:absolute;left:10px;top:10px;display:inline-flex;background:rgba(255,255,255,.92);border:1px solid #CFD9DD;border-radius:999px;padding:3px;z-index:2}
+.stage-tools button{border:none;background:none;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:500;color:#4f5f66;cursor:pointer}
+.stage-tools button[aria-pressed="true"]{background:#E8792F;color:#fff}
 .no3d{padding:20px;color:var(--muted);font-size:14px}
 .ctl{display:flex;align-items:center;gap:12px;margin:12px 14px 0;border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;background:var(--surface-2)}
 .ctl[hidden]{display:none}
@@ -116,7 +120,7 @@ nav.tabs{display:none}
     <section class="panel" id="wiringPanel" aria-label="Schemat podłączenia">
       <div class="panel-head"><h2>Schemat podłączenia</h2></div>
       <div class="scroll">
-        <div class="stage" id="stage"><span class="stage-help">Przeciągnij, aby obrócić. Kółko lub dwa palce: zbliżenie.</span><button class="btn stage-reset" id="resetView" type="button">Widok</button></div>
+        <div class="stage" id="stage"><div class="stage-tools" role="group" aria-label="Sterowanie widokiem"><button type="button" id="modeRotate" aria-pressed="true">Obracaj</button><button type="button" id="modePan" aria-pressed="false">Przesuwaj</button></div><span class="stage-help">Kółko myszy: zbliżenie. Prawy przycisk myszy lub dwa palce: przesuwanie.</span><button class="btn stage-reset" id="resetView" type="button">Widok</button></div>
         <div class="ctl" id="pressBox" hidden><div class="push" id="pushBtn" role="button" tabindex="0" aria-label="Przycisk na pinie 2, przytrzymaj"></div><div class="meta"><div class="name">Przycisk</div><div class="sub">przytrzymaj, żeby wcisnąć</div></div></div>
         <div class="ctl" id="lightBox" hidden><div class="meta"><div class="name">Jasność w pokoju: <span id="lightVal">jasno</span></div><input type="range" id="lightRange" min="0" max="1023" value="800" aria-label="Jasność w pokoju"></div></div>
         <div class="info"><div><h3>Potrzebujesz</h3><ul id="partsList"></ul></div><div><h3>Podłącz po kolei</h3><ol id="stepsList"></ol></div></div>
@@ -484,25 +488,37 @@ function scheduleRender(){ needRender = true; if(typeof renderStates === 'functi
     parts.servo = {arm}; }
 
   /* ---------- kamera ---------- */
-  const view = { rotY:0, rotX:0, dist:1, cx:CX, dist0:1 };
+  const view = { rotY:0, rotX:0, dist:1, cx:CX, dist0:1, px:0, pz:0, mode:"rotate" };
   function applyView(){ pivot.rotation.y = view.rotY; pivot.rotation.x = view.rotX;
     const vf = camera.fov*Math.PI/180, hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
     const d = 9.0/Math.sin(Math.min(vf,hf)/2)*0.92*view.dist;
-    camera.position.set(view.cx, 0.8*d, CZ+0.6*d); camera.lookAt(view.cx, 0.5, CZ+0.2); needRender = true; }
-  const ptrs = new Map(); let pinch0 = 0, dist0 = 1;
+    const tx = view.cx + view.px, tz = CZ + view.pz;
+    camera.position.set(tx, 0.8*d, tz+0.6*d); camera.lookAt(tx, 0.5, tz+0.2); needRender = true; }
+  function pan(dx, dy){ const k = 0.022*view.dist; view.px = Math.max(-12, Math.min(12, view.px - dx*k)); view.pz = Math.max(-9, Math.min(9, view.pz - dy*k)); }
+  const ptrs = new Map(); let pinch0 = 0, dist0 = 1, mid0 = null, panDrag = false;
   const cvs = renderer.domElement;
+  cvs.addEventListener("contextmenu", e=> e.preventDefault());
   cvs.addEventListener("pointerdown", e=>{ cvs.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(ptrs.size===2){ const [a,b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x-b.x,a.y-b.y); dist0 = view.dist; } });
+    panDrag = e.button===2 || e.button===1 || e.shiftKey || view.mode==="pan";
+    if(ptrs.size===2){ const [a,b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x-b.x,a.y-b.y); dist0 = view.dist; mid0 = {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; } });
   cvs.addEventListener("pointermove", e=>{ if(!ptrs.has(e.pointerId)) return; const p = ptrs.get(e.pointerId);
-    if(ptrs.size===1){ view.rotY += (e.clientX-p.x)*0.008; view.rotX = Math.max(-0.45, Math.min(0.5, view.rotX + (e.clientY-p.y)*0.005)); }
+    const dx = e.clientX-p.x, dy = e.clientY-p.y;
+    if(ptrs.size===1){ if(panDrag) pan(dx, dy); else { view.rotY += dx*0.008; view.rotX = Math.max(-0.45, Math.min(0.5, view.rotX + dy*0.005)); } }
     p.x = e.clientX; p.y = e.clientY;
-    if(ptrs.size===2){ const [a,b] = [...ptrs.values()]; const d = Math.hypot(a.x-b.x,a.y-b.y); if(pinch0>0) view.dist = Math.max(0.35, Math.min(1.6, dist0*pinch0/d)); }
+    if(ptrs.size===2){ const [a,b] = [...ptrs.values()]; const d = Math.hypot(a.x-b.x,a.y-b.y); if(pinch0>0) view.dist = Math.max(0.35, Math.min(1.6, dist0*pinch0/d));
+      const m = {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; if(mid0){ pan(m.x-mid0.x, m.y-mid0.y); } mid0 = m; }
     applyView(); });
-  const endP = e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2) pinch0 = 0; };
+  const endP = e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2){ pinch0 = 0; mid0 = null; } };
   ["pointerup","pointercancel","lostpointercapture"].forEach(ev=> cvs.addEventListener(ev, endP));
   cvs.addEventListener("wheel", e=>{ e.preventDefault(); view.dist = Math.max(0.35, Math.min(1.6, view.dist*(1+Math.sign(e.deltaY)*0.08))); applyView(); }, {passive:false});
-  document.getElementById("resetView").onclick = ()=>{ view.rotY=0; view.rotX=0; view.dist=view.dist0; applyView(); };
-  scene3.focus = (cx, dist)=>{ view.cx = cx; pivot.position.x = cx; root.position.x = -cx; view.rotY = 0; view.rotX = 0; view.dist = view.dist0 = dist; applyView(); };
+  window.addEventListener("keydown", e=>{ if(!stage.matches(":hover")) return; const s = 40;
+    if(e.key==="ArrowLeft") pan(-s,0); else if(e.key==="ArrowRight") pan(s,0); else if(e.key==="ArrowUp") pan(0,-s); else if(e.key==="ArrowDown") pan(0,s); else return;
+    e.preventDefault(); applyView(); });
+  const setMode = m=>{ view.mode = m; document.getElementById("modeRotate").setAttribute("aria-pressed", m==="rotate"); document.getElementById("modePan").setAttribute("aria-pressed", m==="pan"); stage.classList.toggle("panning", m==="pan"); };
+  document.getElementById("modeRotate").onclick = ()=> setMode("rotate");
+  document.getElementById("modePan").onclick = ()=> setMode("pan");
+  document.getElementById("resetView").onclick = ()=>{ view.rotY=0; view.rotX=0; view.px=0; view.pz=0; view.dist=view.dist0; applyView(); };
+  scene3.focus = (cx, dist)=>{ view.cx = cx; pivot.position.x = cx; root.position.x = -cx; view.rotY = 0; view.rotX = 0; view.px = 0; view.pz = 0; view.dist = view.dist0 = dist; applyView(); };
   function resize(){ const w = stage.clientWidth, h = stage.clientHeight; if(!w || !h) return; renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); applyView(); }
   new ResizeObserver(resize).observe(stage); resize();
 
